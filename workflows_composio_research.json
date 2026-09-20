@@ -1,0 +1,593 @@
+{
+  "name": "composio research",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -608,
+        224
+      ],
+      "id": "857886b7-291a-4c92-891a-817478433f37",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1JBcmNrefYR1Jf7h9bfIQstoMOpEqhB_5PJaVwOzScEo",
+          "mode": "list",
+          "cachedResultName": "top 100 company",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JBcmNrefYR1Jf7h9bfIQstoMOpEqhB_5PJaVwOzScEo/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "research",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JBcmNrefYR1Jf7h9bfIQstoMOpEqhB_5PJaVwOzScEo/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -384,
+        224
+      ],
+      "id": "07d84cdf-e1c8-46f7-a103-5597a50540ed",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "zIfv1Oybdm3PS9g2",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        64,
+        224
+      ],
+      "id": "837fdaf2-612e-431e-a653-d26346fd7d5c",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Research this application for the Composio integration audit.\n\nApp: {{ $json.app }}\nCategory: {{ $json.category }}\nHint URL: {{ $json.hint_url }}\n\nUse Tavily to search current official documentation.\n\nReturn only these research facts:\n\n1. Description\n2. Authentication methods: return ONLY short controlled tokens from this set — OAuth2, API Key, Basic Auth, Token, Other. Do not include descriptions, flow names, or parenthetical detail here.\n3. Auth notes: any nuance on authentication — which OAuth flows, token scoping, CLI-issued tokens, session vs long-lived credentials, etc. — goes here instead of in field 2.\n4. How credentials are obtained\n5. Access model: self-serve / paid / admin-gated / partner-gated / contact-sales / unknown\n6. API type\n7. API breadth: broad / medium / narrow / unknown\n8. Official or credible MCP availability: yes / no / unknown\n9. Buildability: buildable / blocked / unclear\n10. Main blocker\n11. Evidence URLs\n12. Confidence: high / medium / low\n13. Status: researched / needs_review / failed\n\nRules:\n- Prioritize official developer documentation.\n- Do not guess.\n- API existence does not prove self-serve access.\n- OAuth does not prove that credentials are freely obtainable.\n- An ordinary API is not an MCP server.\n- Field 2 (Authentication methods) must contain ONLY tokens from the controlled set, comma-separated if more than one applies — no sentences, no parentheses, no flow names.\n- Keep every answer concise.\n- Return evidence URLs for important claims.\n\nStatus rules:\n- Use \"researched\" when sufficient evidence is found for the requested fields.\n- Use \"needs_review\" when important information is unclear, conflicting, or unavailable.\n- Use \"failed\" only when the research/search process fails and usable evidence cannot be obtained.\n\nDo not mark an application \"researched\" simply because an API exists.",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        288,
+        432
+      ],
+      "id": "69438584-0bc7-48fd-839d-923a06087377",
+      "name": "AI Agent",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "maxItems": 10
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        -160,
+        224
+      ],
+      "id": "e1e1f865-11b9-49ce-ab81-55c4cb485fdc",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "query": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Query', ``, 'string') }}",
+        "options": {}
+      },
+      "type": "@tavily/n8n-nodes-tavily.tavilyTool",
+      "typeVersion": 1,
+      "position": [
+        432,
+        640
+      ],
+      "id": "77aa6c28-54b3-40a6-8c0d-2e1b3ef35f85",
+      "name": "Search in Tavily",
+      "credentials": {
+        "tavilyApi": {
+          "id": "WdxuZdMw9xySj6X2",
+          "name": "Tavily account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"description\": \"One-sentence description of what the app does.\",\n  \"auth_methods\": [\n    \"OAuth2\"\n  ],\n  \"auth_notes\": \"Brief note on flow types, token scoping, or any nuance not captured by the controlled token above.\",\n  \"credential_acquisition\": \"How a developer actually gets credentials — e.g. 'Create an app in the developer portal' or 'Requires sales approval'.\",\n  \"access_model\": \"self-serve\",\n  \"api_type\": [\n    \"REST\"\n  ],\n  \"api_breadth\": \"broad\",\n  \"mcp_available\": \"yes\",\n  \"buildability\": \"buildable\",\n  \"blocker\": \"None identified\",\n  \"evidence_urls\": [\n    \"https://developer.exampleapp.com/docs\"\n  ],\n  \"confidence\": \"high\",\n  \"status\": \"researched\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        592,
+        624
+      ],
+      "id": "ce24cefe-9581-45b1-9601-9eaacefe4266",
+      "name": "Structured Output Parser1"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "claude-sonnet-5",
+          "cachedResultName": "Claude Sonnet 5"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.6,
+      "position": [
+        272,
+        640
+      ],
+      "id": "76d56b9a-00da-4724-9094-cf67e3d6dc03",
+      "name": "Anthropic Chat Model",
+      "credentials": {
+        "anthropicApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1JBcmNrefYR1Jf7h9bfIQstoMOpEqhB_5PJaVwOzScEo",
+          "mode": "list",
+          "cachedResultName": "top 100 company",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JBcmNrefYR1Jf7h9bfIQstoMOpEqhB_5PJaVwOzScEo/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "research",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JBcmNrefYR1Jf7h9bfIQstoMOpEqhB_5PJaVwOzScEo/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $json.id }}",
+            "app": "={{ $json.app }}",
+            "category": "={{ $json.category }}",
+            "hint_url": "={{ $json.hint_url }}",
+            "Status": "={{ $json.output.status }}",
+            "auth_methods": "={{ $json.output.auth_methods.join(', ') }}",
+            "credential_acquisition": "={{ $json.output.credential_acquisition }}",
+            "access_model": "={{ $json.output.access_model }}",
+            "api_type": "={{ $json.output.api_type.join(', ') }}",
+            "api_breadth": "={{ $json.output.api_breadth }}",
+            "mcp_available": "={{ $json.output.mcp_available }}",
+            "buildability": "={{ $json.output.buildability }}",
+            "blocker": "={{ $json.output.blocker }}",
+            "evidence_urls": "={{ $json.output.evidence_urls.join(', ') }}",
+            "confidence": "={{ $json.output.confidence }}",
+            "description": "={{ $json.output.description }}",
+            "auth_notes": "={{ $json.output.auth_notes }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "app",
+              "displayName": "app",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "hint_url",
+              "displayName": "hint_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "auth_methods",
+              "displayName": "auth_methods",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "credential_acquisition",
+              "displayName": "credential_acquisition",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "access_model",
+              "displayName": "access_model",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "api_type",
+              "displayName": "api_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "api_breadth",
+              "displayName": "api_breadth",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "mcp_available",
+              "displayName": "mcp_available",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "buildability",
+              "displayName": "buildability",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "blocker",
+              "displayName": "blocker",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "evidence_urls",
+              "displayName": "evidence_urls",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "confidence",
+              "displayName": "confidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "auth_notes",
+              "displayName": "auth_notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        944,
+        416
+      ],
+      "id": "370a3875-59b8-4cf2-b90c-9705ecbf444e",
+      "name": "Update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "zIfv1Oybdm3PS9g2",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "74bce0c5-dc48-4fe3-a09a-b37fcbcf7b85",
+              "name": "id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "3df72556-ee36-439b-b260-97071d54230e",
+              "name": "app",
+              "value": "={{ $json.app }}",
+              "type": "string"
+            },
+            {
+              "id": "78b4908e-efc8-4cf5-bc41-831ac0644867",
+              "name": "category",
+              "value": "={{ $json.category }}",
+              "type": "string"
+            },
+            {
+              "id": "24dae018-82a2-4592-af2d-981194e22afd",
+              "name": "hint_url",
+              "value": "={{ $json.hint_url }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        288,
+        224
+      ],
+      "id": "55499d80-af65-46b8-a18c-5503900eaa41",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        672,
+        240
+      ],
+      "id": "f0f10e3f-92c8-4046-ba33-ab9e1ebfff06",
+      "name": "Merge"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search in Tavily": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "e6c3fd55-40b3-4912-937c-dd2f9c0f4d0e",
+  "meta": {
+    "instanceId": "83b78e7793229ae2c3d9999fe9f8505c13348b7ef579ff38249e01a0e5ab4464"
+  },
+  "nodeGroups": [],
+  "id": "hpg9sfQ1wCaKJM40",
+  "tags": []
+}
