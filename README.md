@@ -6,7 +6,7 @@ method(s), self-serve vs gated access, API surface (REST/GraphQL, breadth), exis
 MCP support, a buildability verdict, the main blocker if any, and evidence URLs for
 every claim.
 
-**Live case study:** ![composio](file:///C:/Users/rk336/AppData/Local/Temp/002dd683-5e7f-467c-8596-b368353aeb4d_composio-research-repo.zip.b4d/composio-research/case_study.html)
+**Live case study:** [view case study](file:///C:/Users/rk336/AppData/Local/Temp/002dd683-5e7f-467c-8596-b368353aeb4d_composio-research-repo.zip.b4d/composio-research/case_study.html)
 
 ## Status: pipeline fixed and confirmed running, data still at n=5
 
