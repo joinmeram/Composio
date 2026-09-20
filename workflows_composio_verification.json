@@ -1,0 +1,496 @@
+{
+  "name": "Composio research verification",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "f45be699-fbfa-4a9d-9371-6abc2ecb839c",
+      "name": "When clicking ‘Execute workflow’",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -880,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1JBcmNrefYR1Jf7h9bfIQstoMOpEqhB_5PJaVwOzScEo",
+          "mode": "list",
+          "cachedResultName": "top 100 company",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JBcmNrefYR1Jf7h9bfIQstoMOpEqhB_5PJaVwOzScEo/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "research",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JBcmNrefYR1Jf7h9bfIQstoMOpEqhB_5PJaVwOzScEo/edit#gid=0"
+        },
+        "options": {}
+      },
+      "id": "655c5146-8d7c-49dc-a699-05b442b11ab5",
+      "name": "Get rows verify",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -656,
+        336
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "zIfv1Oybdm3PS9g2",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "maxItems": 10
+      },
+      "id": "1b5e778d-e174-4296-8e3e-1da7121e1125",
+      "name": "Limit",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        -432,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an independent verification agent for the Composio integration audit.\n\nResearch the application below independently using Tavily.\n\nApp: {{ $json.app }}\nCategory: {{ $json.category }}\nHint URL: {{ $json.hint_url }}\n\nIMPORTANT:\n- Do not rely on any previous AI research.\n- Prioritize official developer documentation.\n- Verify authentication, credential acquisition, access model, API surface, MCP availability, and buildability.\n- API existence does not prove self-serve access.\n- OAuth does not prove that credentials are freely obtainable.\n- An ordinary API is not an MCP server.\n- Do not guess.\n- If evidence is unclear or conflicting, say \"unknown\" and lower confidence.\n- Return evidence URLs for important claims.\n\nReturn:\n1. Description\n2. Authentication methods: return ONLY short controlled tokens from this set — OAuth2, API Key, Basic Auth, Token, Other. Do not include descriptions, flow names, or parenthetical detail here.\n3. Auth notes: any nuance on authentication — which OAuth flows, token scoping, CLI-issued tokens, session vs long-lived credentials, etc. — goes here instead of in field 2.\n4. Credential acquisition\n5. Access model: self-serve / paid / admin-gated / partner-gated / contact-sales / unknown\n6. API type\n7. API breadth: broad / medium / narrow / unknown\n8. MCP availability: yes / no / unknown\n9. Buildability: buildable / blocked / unclear\n10. Main blocker\n11. Evidence URLs\n12. Confidence: high / medium / low\n\nRules:\n- Field 2 (Authentication methods) must contain ONLY tokens from the controlled set, comma-separated if more than one applies — no sentences, no parentheses, no flow names.\n- Keep every answer concise.\nFinal answer format: return every field. auth_methods, api_type and evidence_urls must be lists. Use \"unknown\" for anything you cannot verify. Return only the structured result, with no extra text.",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are an independent verification agent for a Composio integration audit. Research each app independently using the Tavily search tool, prioritize official developer documentation, do not guess, and return the requested structured fields with evidence URLs. Use a limited number of searches, then produce your final answer.",
+          "maxIterations": 10
+        }
+      },
+      "id": "7f787d5c-8ebb-4270-b660-71a152c4258b",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -208,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "claude-sonnet-5",
+          "mode": "list",
+          "cachedResultName": "Claude Sonnet 5"
+        },
+        "options": {}
+      },
+      "id": "f49cbd19-97e5-49ff-9f1b-3056a12a5cf0",
+      "name": "Anthropic Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.6,
+      "position": [
+        -336,
+        544
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "query": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Query', ``, 'string') }}",
+        "options": {}
+      },
+      "id": "59dd6c09-3ca2-4137-9ecc-c89cbb45e2ce",
+      "name": "Search in Tavily",
+      "type": "@tavily/n8n-nodes-tavily.tavilyTool",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        544
+      ],
+      "credentials": {
+        "tavilyApi": {
+          "id": "WdxuZdMw9xySj6X2",
+          "name": "Tavily account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"description\": \"One-sentence description of what the app does.\",\n  \"auth_methods\": [\"OAuth2\"],\n  \"auth_notes\": \"Brief note on flow types, token scoping, or any nuance not captured by the controlled token above.\",\n  \"credential_acquisition\": \"How a developer actually gets credentials — e.g. 'Create an app in the developer portal' or 'Requires sales approval'.\",\n  \"access_model\": \"self-serve\",\n  \"api_type\": [\"REST\"],\n  \"api_breadth\": \"broad\",\n  \"mcp_available\": \"unknown\",\n  \"buildability\": \"buildable\",\n  \"blocker\": \"No major blocker identified.\",\n  \"evidence_urls\": [\n    \"https://developer.exampleapp.com/docs\"\n  ],\n  \"confidence\": \"high\"\n}"
+      },
+      "id": "3604b9bb-9ae8-4607-a384-d3cf579622d6",
+      "name": "Structured Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        64,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1JBcmNrefYR1Jf7h9bfIQstoMOpEqhB_5PJaVwOzScEo",
+          "mode": "list",
+          "cachedResultName": "top 100 company",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JBcmNrefYR1Jf7h9bfIQstoMOpEqhB_5PJaVwOzScEo/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 131276562,
+          "mode": "list",
+          "cachedResultName": "verification",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JBcmNrefYR1Jf7h9bfIQstoMOpEqhB_5PJaVwOzScEo/edit#gid=131276562"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $json.id }}",
+            "app": "={{ $json.app }}",
+            "category": "={{ $json.category }}",
+            "hint_url": "={{ $json.hint_url }}",
+            "verification_auth_notes": "={{ $json.output.auth_notes }}",
+            "verification_auth_methods": "={{ [].concat($json.output.auth_methods || []).join(', ') }}",
+            "verification_description": "={{ $json.output.description }}",
+            "verification_credential_acquisit": "={{ $json.output.credential_acquisition }}",
+            "verification_access_model": "={{ $json.output.access_model }}",
+            "verification_api_type": "={{ [].concat($json.output.api_type || []).join(', ') }}",
+            "verification_api_breadth": "={{ $json.output.api_breadth }}",
+            "verification_mcp_available": "={{ $json.output.mcp_available }}",
+            "verification_buildability": "={{ $json.output.buildability }}",
+            "verification_blocker": "={{ $json.output.blocker }}",
+            "verification_evidence_urls": "={{ [].concat($json.output.evidence_urls || []).join(', ') }}",
+            "verification_confidence": "={{ $json.output.confidence }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "app",
+              "displayName": "app",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "hint_url",
+              "displayName": "hint_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "verification_status",
+              "displayName": "verification_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "verification_description",
+              "displayName": "verification_description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "verification_auth_methods",
+              "displayName": "verification_auth_methods",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "verification_credential_acquisit",
+              "displayName": "verification_credential_acquisit",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "verification_access_model",
+              "displayName": "verification_access_model",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "verification_api_type",
+              "displayName": "verification_api_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "verification_api_breadth",
+              "displayName": "verification_api_breadth",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "verification_mcp_available",
+              "displayName": "verification_mcp_available",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "verification_buildability",
+              "displayName": "verification_buildability",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "verification_blocker",
+              "displayName": "verification_blocker",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "verification_evidence_urls",
+              "displayName": "verification_evidence_urls",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "verification_confidence",
+              "displayName": "verification_confidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "verification_auth_notes",
+              "displayName": "verification_auth_notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "b5273d10-a724-45c5-9b14-0ff0a0a8c69a",
+      "name": "Append row in sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        240,
+        208
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "zIfv1Oybdm3PS9g2",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        0,
+        208
+      ],
+      "id": "9a6728cf-a67a-40db-a71d-3ad2a2627292",
+      "name": "Merge"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get rows verify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get rows verify": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search in Tavily": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "e33ea2b6-a431-4069-b336-a08f5d6ef049",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "83b78e7793229ae2c3d9999fe9f8505c13348b7ef579ff38249e01a0e5ab4464"
+  },
+  "nodeGroups": [],
+  "id": "HKjTYGtftfiLReTt",
+  "tags": []
+}
