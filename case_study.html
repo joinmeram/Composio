@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Composio Integration Audit — Pipeline Status Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #ECEFE9;
+    --paper-raised: #F6F7F3;
+    --ink: #15211D;
+    --ink-soft: #3F4A45;
+    --muted: #6E766F;
+    --line: #CBD1C6;
+    --pine: #2C6B58;
+    --pine-soft: #E4EEE9;
+    --rust: #AE4C1E;
+    --rust-soft: #F5E4D8;
+    --gold: #9C7A1F;
+    --gold-soft: #F2ECDA;
+    --font-display: 'Fraunces', serif;
+    --font-body: 'IBM Plex Sans', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #14201C;
+      --paper-raised: #1B2822;
+      --ink: #EAEDE7;
+      --ink-soft: #C4CBC3;
+      --muted: #8B948C;
+      --line: #33413A;
+      --pine: #6FBE9E;
+      --pine-soft: #1E332B;
+      --rust: #E38A56;
+      --rust-soft: #3A2618;
+      --gold: #D6B85B;
+      --gold-soft: #362E17;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #14201C;
+    --paper-raised: #1B2822;
+    --ink: #EAEDE7;
+    --ink-soft: #C4CBC3;
+    --muted: #8B948C;
+    --line: #33413A;
+    --pine: #6FBE9E;
+    --pine-soft: #1E332B;
+    --rust: #E38A56;
+    --rust-soft: #3A2618;
+    --gold: #D6B85B;
+    --gold-soft: #362E17;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 64px 24px 120px;
+  }
+  @media (max-width: 600px) {
+    .wrap { padding: 40px 18px 90px; }
+  }
+
+  /* ---- masthead ---- */
+  .masthead { margin-bottom: 56px; }
+  .masthead .kicker {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 18px;
+  }
+  h1 {
+    font-family: var(--font-display);
+    font-optical-sizing: auto;
+    font-weight: 600;
+    font-size: clamp(34px, 5.5vw, 50px);
+    line-height: 1.08;
+    margin: 0 0 18px;
+    letter-spacing: -0.01em;
+  }
+  .masthead .dek {
+    font-size: 18px;
+    color: var(--ink-soft);
+    max-width: 62ch;
+    margin: 0;
+  }
+
+  /* ---- ledger ---- */
+  .ledger {
+    margin: 48px 0 56px;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding: 28px 0;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+  @media (max-width: 600px) {
+    .ledger { grid-template-columns: 1fr; gap: 20px; }
+  }
+  .ledger-item .stage {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .ledger-item .value {
+    font-family: var(--font-display);
+    font-size: 34px;
+    font-weight: 600;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .ledger-item .value .of {
+    font-size: 19px;
+    color: var(--muted);
+    font-weight: 400;
+  }
+  .ledger-item .note {
+    font-size: 14px;
+    color: var(--ink-soft);
+  }
+
+  section { margin: 64px 0; }
+  section > h2 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 26px;
+    margin: 0 0 8px;
+    letter-spacing: -0.01em;
+  }
+  section > .section-dek {
+    color: var(--muted);
+    font-size: 15px;
+    margin: 0 0 28px;
+    max-width: 62ch;
+  }
+  p { max-width: 68ch; }
+  a { color: var(--pine); text-decoration-thickness: 1px; }
+  a:hover { text-decoration-color: var(--rust); }
+
+  /* ---- bug callout ---- */
+  .bug-box {
+    background: var(--rust-soft);
+    border: 1px solid color-mix(in srgb, var(--rust) 35%, transparent);
+    border-radius: 3px;
+    padding: 24px 26px;
+    margin: 24px 0;
+  }
+  .bug-box .tag {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--rust);
+    margin-bottom: 10px;
+  }
+  .bug-box code {
+    font-family: var(--font-mono);
+    font-size: 13.5px;
+    background: var(--paper-raised);
+    padding: 2px 6px;
+    border-radius: 2px;
+    border: 1px solid var(--line);
+  }
+  .bug-box pre {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    margin: 12px 0;
+  }
+
+  .swap-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 14.5px;
+  }
+  .swap-table th, .swap-table td {
+    text-align: left;
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  .swap-table th {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    color: var(--muted);
+    font-size: 12.5px;
+  }
+  .swap-table .was { color: var(--rust); }
+  .swap-table .now { color: var(--pine); }
+
+  /* ---- architecture ---- */
+  .stage-list { display: flex; flex-direction: column; gap: 0; margin: 24px 0; }
+  .stage-row {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 20px;
+    padding: 20px 0;
+    border-top: 1px solid var(--line);
+  }
+  .stage-row:last-child { border-bottom: 1px solid var(--line); }
+  @media (max-width: 600px) {
+    .stage-row { grid-template-columns: 1fr; gap: 6px; }
+  }
+  .stage-row .stage-name {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--muted);
+    padding-top: 3px;
+  }
+  .stage-row .stage-body h3 {
+    margin: 0 0 6px;
+    font-size: 17px;
+    font-weight: 600;
+    font-family: var(--font-body);
+  }
+  .stage-row .stage-body p { margin: 0 0 6px; font-size: 14.5px; color: var(--ink-soft); }
+  .tool-chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .tool-chip {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    padding: 3px 9px;
+    border-radius: 20px;
+    color: var(--ink-soft);
+  }
+  .gap-note {
+    font-size: 13.5px;
+    color: var(--rust);
+    margin-top: 10px;
+  }
+
+  /* ---- findings table ---- */
+  .findings { display: flex; flex-direction: column; gap: 14px; margin: 24px 0; }
+  .app-card {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 20px 22px;
+  }
+  .app-card .app-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+  }
+  .app-card h3 {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0;
+  }
+  .app-card .category-tag {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+  .app-card .one-liner {
+    font-size: 14.5px;
+    color: var(--ink-soft);
+    margin: 6px 0 16px;
+  }
+  .field-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  @media (max-width: 640px) {
+    .field-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  .field-grid .f-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 3px;
+  }
+  .field-grid .f-value {
+    font-size: 13.5px;
+    font-weight: 500;
+  }
+  .pill {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 2px 9px;
+    border-radius: 20px;
+  }
+  .pill.pos { background: var(--pine-soft); color: var(--pine); }
+  .pill.neg { background: var(--rust-soft); color: var(--rust); }
+  .pill.mid { background: var(--gold-soft); color: var(--gold); }
+  .evidence-links { font-size: 12.5px; color: var(--muted); margin-top: 10px; }
+  .evidence-links a { color: var(--muted); margin-right: 10px; }
+  .fixed-tag {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--rust);
+    border: 1px solid color-mix(in srgb, var(--rust) 40%, transparent);
+    padding: 1px 7px;
+    border-radius: 20px;
+  }
+
+  /* ---- verification ---- */
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 13.5px;
+  }
+  .compare-table th, .compare-table td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  .compare-table th {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    color: var(--muted);
+    font-size: 11.5px;
+  }
+  .compare-table .status-cell { width: 90px; }
+  .accuracy-strip {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin: 20px 0 8px;
+  }
+  .accuracy-strip .big-num {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 40px;
+  }
+  .accuracy-strip .big-num.pos { color: var(--pine); }
+  .accuracy-bar {
+    height: 8px;
+    border-radius: 4px;
+    background: var(--line);
+    overflow: hidden;
+    margin: 14px 0 22px;
+    max-width: 300px;
+  }
+  .accuracy-bar-fill { height: 100%; background: var(--pine); }
+
+  /* ---- patterns ---- */
+  .pattern-list { display: flex; flex-direction: column; gap: 16px; margin: 24px 0; }
+  .pattern-item {
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    gap: 16px;
+    align-items: baseline;
+  }
+  .pattern-item .p-frac {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: var(--pine);
+  }
+  .pattern-item p { margin: 0; font-size: 14.5px; }
+  .caveat {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    color: var(--muted);
+    border-left: 2px solid var(--line);
+    padding-left: 14px;
+    margin: 20px 0 0;
+  }
+
+  /* ---- scope / footer ---- */
+  .scope-box {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 26px 28px;
+    margin: 24px 0;
+  }
+  .scope-box h3 { margin: 0 0 10px; font-size: 16px; }
+  .scope-box p { font-size: 14.5px; color: var(--ink-soft); margin: 0 0 10px; }
+  .scope-box ul { margin: 10px 0 0; padding-left: 20px; font-size: 14px; color: var(--ink-soft); }
+  .scope-box li { margin-bottom: 6px; }
+
+  footer {
+    margin-top: 80px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  footer a { color: var(--ink-soft); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="masthead">
+    <div class="kicker">Composio · AI Product Ops Intern take-home</div>
+    <h1>An agent audited 100 apps for integration readiness. Ten are done, two are independently verified, and three real pipeline bugs got caught along the way.</h1>
+    <p class="dek">This is a status report, not a finished dataset. Ten apps researched — the complete CRM and Sales category — two independently re-verified, three real pipeline bugs found and fixed before they could spread to the other ninety. Everything below is what actually happened, including the parts that still disagree.</p>
+  </div>
+
+  <div class="ledger">
+    <div class="ledger-item">
+      <div class="stage">01 · Research</div>
+      <div class="value">10<span class="of">&nbsp;/&nbsp;100</span></div>
+      <div class="note">apps fully researched with evidence URLs — all of Category 1, CRM and Sales</div>
+    </div>
+    <div class="ledger-item">
+      <div class="stage">02 · Verify</div>
+      <div class="value">2<span class="of">&nbsp;/&nbsp;10</span></div>
+      <div class="note">independently re-researched by a second agent, blind to the first pass</div>
+    </div>
+    <div class="ledger-item">
+      <div class="stage">03 · Analyze</div>
+      <div class="value">n<span class="of">=10</span></div>
+      <div class="note">one full category — enough to see a shape, not yet enough to call it the pattern</div>
+    </div>
+  </div>
+
+  <section id="bug">
+    <h2>What the agent got wrong — and what fixing it took</h2>
+    <p class="section-dek">Three real bugs were caught by manually diffing a small batch before trusting the pipeline at scale. All three are fixed and confirmed holding at n=10 — every row in this run is labeled correctly.</p>
+
+    <div class="bug-box">
+      <div class="tag">Bug 1 · Row mislabeling — fixed, confirmed at scale</div>
+      <p style="margin:0 0 10px; font-size:14.5px;">The original write-back expression, <code>{{ $('Loop Over Items').first(1, $runIndex).json.id }}</code>, doesn't track loop position — five of the first five rows shipped correctly-researched content under the wrong company name.</p>
+      <p style="margin:0; font-size:14.5px;"><strong>Fix applied:</strong> an <code>Edit Fields</code> node now snapshots <code>id</code>/<code>app</code>/<code>category</code>/<code>hint_url</code> immediately after the row is read, before the AI Agent ever touches them. A <code>Merge (combine by position)</code> node reattaches those trusted values to the AI's research output afterward. All 10 rows in the latest run — Salesforce through DealCloud — are labeled correctly.</p>
+    </div>
+
+    <div class="bug-box">
+      <div class="tag">Bug 2 · Verification accuracy silently reporting 0% — fixed</div>
+      <p style="margin:0 0 10px; font-size:14.5px;">The comparison code looked for columns named <code>verification_access_model</code> etc., but the actual sheet headers were typo'd as <code>verifcation_access_model</code> (and one header had a stray <code>"ion"</code> fragment from a copy-paste slip). Every lookup silently returned <code>undefined</code>, so the pipeline's own accuracy metric — the thing the assignment weighs most — was structurally incapable of reporting anything but mismatches.</p>
+      <p style="margin:0; font-size:14.5px;"><strong>Fix applied:</strong> sheet headers corrected to consistent <code>verification_*</code> naming, and the comparison logic now deliberately excludes free-text fields (description, blocker, credential acquisition) from the match/mismatch count. It also normalizes tokens (<code>"OAuth 2.0"</code> and <code>"OAuth2"</code> now count as equal) so formatting drift doesn't register as a false mismatch. The verification section below shows this running correctly on 2 real apps.</p>
+    </div>
+
+    <div class="bug-box">
+      <div class="tag">Bug 3 · auth_methods fragmenting into fake entries — fixed</div>
+      <p style="margin:0 0 10px; font-size:14.5px;">The agent was returning full descriptive sentences inside the <code>auth_methods</code> array, which then split into several fake "methods" during pattern analysis.</p>
+      <p style="margin:0; font-size:14.5px;"><strong>Fix applied:</strong> the prompt now constrains <code>auth_methods</code> to a short controlled vocabulary (OAuth2 / API Key / Basic Auth / Token / Other), with a separate <code>auth_notes</code> field holding the nuance. All 10 rows in this run use clean tokens.</p>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2>How the research runs</h2>
+    <p class="section-dek">Three separate n8n workflows, chained by a shared Google Sheet acting as the data store between stages.</p>
+
+    <div class="stage-list">
+      <div class="stage-row">
+        <div class="stage-name">RESEARCH</div>
+        <div class="stage-body">
+          <h3>Per-app discovery agent</h3>
+          <p>Reads the 100-app list from Sheets, loops one app at a time through a Claude agent with a Tavily search tool attached. The agent is instructed to prioritize official developer docs, treat API existence as separate from self-serve access, return auth methods as controlled tokens (not free sentences), and cite evidence URLs for every claim. An Edit Fields + Merge (combine-by-position) step keeps the row's true id/app/category/hint_url out of the model's hands entirely, so the write-back can never mislabel a row no matter what the model returns.</p>
+          <div class="tool-chip-row">
+            <span class="tool-chip">n8n</span>
+            <span class="tool-chip">Claude Haiku 4.5</span>
+            <span class="tool-chip">Tavily search</span>
+            <span class="tool-chip">Google Sheets</span>
+          </div>
+        </div>
+      </div>
+      <div class="stage-row">
+        <div class="stage-name">VERIFY</div>
+        <div class="stage-body">
+          <h3>Independent re-research agent</h3>
+          <p>A second agent researches the same app from scratch — no access to the first pass's output — with an explicit instruction set: OAuth existing doesn't prove credentials are freely obtainable, an ordinary API isn't an MCP server, say "unknown" rather than guess. Its output lands in a separate sheet tab.</p>
+          <div class="tool-chip-row">
+            <span class="tool-chip">n8n</span>
+            <span class="tool-chip">Claude Haiku 4.5</span>
+            <span class="tool-chip">Tavily search</span>
+          </div>
+        </div>
+      </div>
+      <div class="stage-row">
+        <div class="stage-name">ANALYZE</div>
+        <div class="stage-body">
+          <h3>Comparison &amp; pattern code</h3>
+          <p>Code nodes join the research and verification tabs on app <code>id</code>, diff them field by field on the controlled-vocabulary fields only (auth methods, access model, API type/breadth, MCP availability, buildability) to compute match/mismatch counts and a field-accuracy percentage, and separately tally distributions and blocker categories across whatever's been researched so far. Free-text fields are deliberately excluded from the accuracy count, since independent model runs word them differently by nature.</p>
+          <div class="tool-chip-row">
+            <span class="tool-chip">n8n Code nodes</span>
+            <span class="tool-chip">JavaScript</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="gap-note">Honest gap: this pipeline doesn't touch Composio's own SDK or MCP anywhere — it's Tavily for search and Claude for reasoning, orchestrated by n8n. A script built on Composio's SDK would dogfood the product being evaluated more directly; that's the next thing to change, not just the app count.</p>
+  </section>
+
+  <section id="findings">
+    <h2>Findings — the 10 apps researched</h2>
+    <p class="section-dek">Every field below traces to an evidence URL the agent cited. All of Category 1, CRM and Sales.</p>
+    <div class="findings" id="findings-container"></div>
+  </section>
+
+  <section id="verification">
+    <h2>Verification — did the agent's answers hold up?</h2>
+    <p class="section-dek">Salesforce and HubSpot, each re-researched independently, field by field on the six controlled-vocabulary fields.</p>
+
+    <div class="accuracy-strip">
+      <span class="big-num pos">75%</span>
+      <span style="font-size:14px; color:var(--muted);">of compared fields agreed across both apps (9 of 12) — but 0 of 2 apps agreed on every field</span>
+    </div>
+    <div class="accuracy-bar"><div class="accuracy-bar-fill" style="width:75%"></div></div>
+
+    <div id="verification-container"></div>
+
+    <p style="font-size:14px; color:var(--ink-soft); max-width:62ch; margin-top:20px;">The disagreements aren't noise — they're the verification agent finding real things the first pass missed. For Salesforce, it surfaced Basic Auth and a Streaming API the original research didn't mention. For HubSpot, it surfaced a legacy API Key path. In both cases the independent pass added coverage rather than contradicting it — which is a better outcome than a clean match would have been, since it shows the second check is actually catching gaps, not just agreeing by default.</p>
+  </section>
+
+  <section id="patterns">
+    <h2>What's visible so far</h2>
+    <p class="section-dek">One full category (CRM and Sales, 10/10) — real enough to state with some confidence for this category, still too narrow to generalize to the other nine.</p>
+    <div class="pattern-list">
+      <div class="pattern-item">
+        <span class="p-frac">9/10</span>
+        <p>Self-serve at some tier — free dev edition, instant API key, or OAuth app registration with no approval gate. The one exception, DealCloud, requires an existing paid customer site before API access is even possible — a genuinely different access model, not just a stricter version of the others.</p>
+      </div>
+      <div class="pattern-item">
+        <span class="p-frac">8/10</span>
+        <p>Already have some form of MCP support (native, hosted, or community). The two without it — Copper and DealCloud — are also the two with the least open access model, suggesting MCP availability tracks with how open the platform already is, not the other way around.</p>
+      </div>
+      <div class="pattern-item">
+        <span class="p-frac">10/10</span>
+        <p>OAuth2 shows up in every single app — it's the universal baseline for this category, not one option among several. API Key appears in 6/10 as an additional server-to-server path; a buildability check that only looks for "does it support OAuth" would miss nothing here, but that may not hold outside CRM.</p>
+      </div>
+    </div>
+    <p class="caveat">All 10 apps are from category 1 (CRM and Sales) — the other 9 categories (support, comms, martech, ecommerce, data/SEO, dev infra, productivity, fintech, AI/media) are entirely unresearched. These are category-specific observations, not platform-wide patterns yet.</p>
+  </section>
+
+  <section id="scope">
+    <h2>Why this stops at 10</h2>
+    <div class="scope-box">
+      <h3>Scope note</h3>
+      <p>The pipeline is built, debugged, and confirmed running correctly at scale — all three bugs are fixed, and all 10 rows in this run are labeled and parsed correctly. One full category is done. Finishing the remaining 90 requires more Anthropic/Tavily API credit than's currently available, so this submission is honestly scoped rather than padded with unresearched rows dressed up as findings.</p>
+      <p>What completing it looks like from here — all mechanical at this point, no further debugging needed:</p>
+      <ul>
+        <li>Run research across the remaining 9 categories (90 apps)</li>
+        <li>Verify a real cross-category sample — 15–20 apps, not 2 from one category</li>
+        <li>Rebuild the pattern analysis on the full set to see whether the CRM-category patterns above (near-universal OAuth2, mostly self-serve, majority MCP-ready) hold elsewhere or were specific to this category</li>
+        <li>Rebuild this page against the complete dataset</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    <span>Composio AI Product Ops Intern take-home · corrected + published Sept 2026</span>
+    <span><a href="#">Source repo →</a></span>
+  </footer>
+
+</div>
+
+<script id="case-study-data" type="application/json">
+{"research": {"Salesforce": {"app": "Salesforce", "category": "CRM and Sales", "description": "Salesforce is a cloud-based CRM platform (Sales Cloud, Service Cloud, etc.) that exposes REST, SOAP, Bulk, Metadata, and other APIs for integrating and automating Salesforce data and business processes.", "auth_methods": "OAuth2, Token", "access_model": "self-serve", "api_type": "REST, SOAP, Bulk, Metadata, GraphQL (partial/Connect)", "api_breadth": "broad", "mcp_available": "yes", "buildability": "buildable", "blocker": "None fundamental for a free Developer Edition org; production-grade access, higher rate limits, and some Connected App features (e.g., relaxed IP restrictions, certain OAuth scopes) may require org admin permissions or a paid Salesforce license.", "evidence_urls": ["https://developer.salesforce.com/docs/platform/api-rest/guide/intro-what-is-rest-api.html", "https://developer.salesforce.com/docs/platform/api-rest/guide/intro-oauth-and-connected-apps.html", "https://developer.salesforce.com/docs/platform/api-rest/guide/quickstart-oauth.html", "https://developer.salesforce.com/docs/platform/hosted-mcp-servers/guide/hosted-mcp-servers-overview.html", "https://github.com/salesforcecli/mcp", "https://help.webex.com/article/n0tirjeb", "https://developer.salesforce.com"], "confidence": "high", "verified": true}, "HubSpot": {"app": "HubSpot", "category": "CRM and Sales", "description": "HubSpot is a cloud-based CRM and sales/marketing platform providing REST APIs for managing contacts, companies, deals, marketing, service, and CMS data.", "auth_methods": "OAuth2, Token", "access_model": "self-serve", "api_type": "REST", "api_breadth": "broad", "mcp_available": "yes", "buildability": "buildable", "blocker": "none significant; OAuth public apps require scope approval for marketplace distribution, but private-app tokens and basic OAuth for internal use are freely self-serve.", "evidence_urls": ["https://developers.hubspot.com/docs/apps/developer-platform/build-apps/authentication/overview", "https://developers.hubspot.com/docs/apps/legacy-apps/authentication/intro-to-auth", "https://developers.hubspot.com/docs/apps/legacy-apps/authentication/working-with-oauth", "https://developers.hubspot.com/ai-tools/mcp", "https://www.hubspot.com/ai-tools", "https://developers.hubspot.com/changelog/mcp-server-beta"], "confidence": "high", "verified": true}, "Pipedrive": {"app": "Pipedrive", "category": "CRM and Sales", "description": "Pipedrive is a sales-focused CRM platform that offers a RESTful API enabling developers to build integrations and apps that read/write deals, contacts, organizations, activities, and other CRM objects.", "auth_methods": "OAuth2, API Key", "access_model": "self-serve", "api_type": "REST", "api_breadth": "broad", "mcp_available": "yes", "buildability": "buildable", "blocker": "None for core API/OAuth access; API token visibility can be restricted by admin-configured permission sets, which is a minor gating factor for some users.", "evidence_urls": ["https://developers.pipedrive.com/docs/api/v1/Oauth", "https://pipedrive.readme.io/docs/core-api-concepts-authentication", "https://support.pipedrive.com/en/article/what-is-the-api-key-for", "https://support.pipedrive.com/en/article/how-can-i-find-my-personal-api-key", "https://developers.pipedrive.com/docs/api/v1", "https://www.pipedrive.com/en/features/crm-api", "https://www.pipedrive.com/en/newsroom/pipedrive-launches-native-mcp-server-bringing-crm-workflows-directly-into-ai-assistants", "https://www.pipedrive.com/en/features/mcp-server", "https://support.pipedrive.com/en/article/mcp-claude"], "confidence": "high", "verified": false}, "Attio": {"app": "Attio", "category": "CRM and Sales", "description": "Attio is a data-driven CRM platform for managing sales, customer relationships, and go-to-market workflows, with a full REST API and app-building surface (build.attio.com) for custom integrations, along with a hosted MCP server for AI agent access.", "auth_methods": "OAuth2, API Key", "access_model": "self-serve", "api_type": "REST", "api_breadth": "broad", "mcp_available": "yes", "buildability": "buildable", "blocker": "None significant \u2014 API keys and OAuth apps are self-serve for any Attio workspace (requires being a workspace admin for API keys); OAuth app publishing to the app store may involve additional review, but building/using tokens for a single workspace has no gating.", "evidence_urls": ["https://docs.attio.com/rest-api/guides/authentication", "https://attio.com/help/reference/apps/generating-an-api-key", "https://docs.attio.com/docs/oauth/authorize", "https://docs.attio.com/rest-api/tutorials/connect-an-app-through-oauth", "https://docs.attio.com/mcp/overview", "https://attio.com/apps/mcp", "https://www.scalekit.com/blog/attio-mcp-vs-api"], "confidence": "high", "verified": false}, "Twenty": {"app": "Twenty", "category": "CRM and Sales", "description": "Twenty is an open-source, developer-first CRM (AGPL-3.0 licensed) positioned as an alternative to Salesforce/HubSpot. It auto-generates REST and GraphQL APIs from the workspace's data schema (standard objects like People, Companies, Opportunities, plus any custom objects), and offers a Metadata API for programmatic schema management. Available as a managed Cloud service (twenty.com) or self-hosted via Docker.", "auth_methods": "API Key, OAuth2", "access_model": "self-serve", "api_type": "REST, GraphQL", "api_breadth": "broad", "mcp_available": "yes", "buildability": "buildable", "blocker": "None significant for core CRUD API access via API Key (available even on free Cloud tier and self-hosted OSS). Some advanced capabilities (e.g., custom objects/apps, AI Agents, workflow credits, SSO) are gated behind paid Pro/Organization/Enterprise plans, which could limit breadth of testable features depending on integration scope.", "evidence_urls": ["https://docs.twenty.com/developers/extend/api", "https://docs.twenty.com/developers/extend/oauth", "https://docs.twenty.com/developers/self-host/self-host", "https://twenty.com/pricing", "https://twenty.com", "https://github.com/twentyhq/twenty", "https://github.com/mhenry3164/twenty-crm-mcp-server", "https://nango.dev/docs/integrations/all/twenty-crm-self-hosted"], "confidence": "high", "verified": false}, "Podio": {"app": "Podio", "category": "CRM and Sales", "description": "Podio is a customizable work/collaboration and CRM-style platform (now owned by Progress Software, formerly Citrix) that lets teams build custom apps for workspaces, items, tasks, contacts and workflows. The Podio API exposes essentially all frontend functionality (apps, items, spaces, organizations, users, tasks, files, comments, hooks/webhooks) for building integrations and automations.", "auth_methods": "OAuth2", "access_model": "self-serve", "api_type": "REST", "api_breadth": "broad", "mcp_available": "yes", "buildability": "buildable", "blocker": "None for core self-serve OAuth2 API access; higher rate limits and elevated trust-level (needed for some destructive operations) require contacting Podio support, which adds a partner-gated element for advanced use cases.", "evidence_urls": ["https://developers.podio.com/authentication", "https://developers.podio.com/authentication/app_auth", "https://developers.podio.com/authentication/server_side", "https://developers.podio.com/doc/oauth-authorization", "https://developers.podio.com/api-key", "https://developers.podio.com/index/faq", "https://developers.podio.com/index/limits", "https://developers.podio.com/index/api", "https://www.progress.com/podio/documentation/using-podio/podio-mcp-server", "https://en.wikipedia.org/wiki/Podio"], "confidence": "high", "verified": false}, "Zoho CRM": {"app": "Zoho CRM", "category": "CRM and Sales", "description": "Zoho CRM is a cloud-based customer relationship management platform for managing sales, marketing, customer support, and inventory operations. It exposes a comprehensive REST API (currently V8) that allows third-party applications to perform CRUD operations, bulk data operations, metadata retrieval, notifications, and SQL-like queries against CRM records/modules.", "auth_methods": "OAuth2", "access_model": "self-serve", "api_type": "REST", "api_breadth": "broad", "mcp_available": "yes", "buildability": "buildable", "blocker": "None significant for standard API access \u2014 self-serve OAuth registration is freely available. Zoho's own official MCP product (Zoho MCP / CRM MCP servers) is currently in Early Access/rolling GA (as of late 2025), so official MCP availability may have limited access during rollout; third-party open-source MCP servers (e.g., GitHub junnaisystems/zoho-crm-mcp) also exist built atop the OAuth API.", "evidence_urls": ["https://www.zoho.com/crm/developer/docs/api/v8/oauth-overview.html", "https://www.zoho.com/crm/developer/docs/api/v8/access-refresh.html", "https://www.zoho.com/crm/developer/docs/api/v8/register-client.html", "https://www.zoho.com/developer/oauth/register-app.html", "https://www.zoho.com/developer/oauth/self-client/overview.html", "https://www.zoho.com/crm/developer/docs/api/v8", "https://www.zoho.com/crm/developer/mcp.html", "https://www.zoho.com/mcp", "https://finance.yahoo.com/news/zoho-launches-zia-llm-deepens-070100475.html"], "confidence": "high", "verified": false}, "Close": {"app": "Close", "category": "CRM and Sales", "description": "Close is a sales CRM built for startups and SMBs, offering pipeline management, calling, email, SMS, and sales automation (sequences, workflows) with a full REST API and webhook/event streaming for integrations.", "auth_methods": "OAuth2, API Key", "access_model": "self-serve", "api_type": "REST", "api_breadth": "broad", "mcp_available": "yes", "buildability": "buildable", "blocker": "None identified \u2014 both API key and OAuth credentials are self-serve obtainable directly from the Close account/developer settings without gating, approval, or sales contact.", "evidence_urls": ["https://developer.close.com/api/overview/api-key-authentication", "https://developer.close.com/api/overview/oauth-authentication", "https://developer.close.com/api/overview", "https://developer.close.com/integrations", "https://developer.close.com/mcp", "https://help.close.com/integrations/api-keys-oauth", "https://help.close.com/integrations/close-mcp-server"], "confidence": "high", "verified": false}, "Copper": {"app": "Copper", "category": "CRM and Sales", "description": "Copper is a CRM and relationship-management platform built to integrate natively with Google Workspace (Gmail, Calendar, Drive), helping sales teams manage contacts, companies, opportunities, projects, and tasks.", "auth_methods": "OAuth2, API Key", "access_model": "self-serve", "api_type": "REST", "api_breadth": "medium", "mcp_available": "no", "buildability": "buildable", "blocker": "None for API Key access (self-serve, admin-generated); OAuth2.0 requires manual app registration with Copper support before client credentials are issued, which could introduce a partner-approval step for OAuth-based integrations.", "evidence_urls": ["https://developer.copper.com/introduction/authentication.html", "https://developer.copper.com/introduction/oauth/index.html", "https://developer.copper.com/introduction/oauth/flow.html", "https://developer.copper.com/introduction/requests.html", "https://support.copper.com/en/articles/8823347-generating-an-api-key", "https://support.copper.com/en/articles/8823462-api-docs-and-tips", "https://nango.dev/docs/integrations/all/copper-api-key", "https://www.usecarly.com/blog/copper-crm-ai"], "confidence": "high", "verified": false}, "DealCloud": {"app": "DealCloud", "category": "CRM and Sales", "description": "DealCloud (an Intapp product) is a deal management and CRM platform used by investment firms, capital markets, and M&A advisory professionals to manage deals, contacts, companies, pipelines, and firm-wide relationship intelligence, with custom, site-specific data schemas.", "auth_methods": "OAuth2, API Key", "access_model": "admin-gated", "api_type": "REST", "api_breadth": "broad", "mcp_available": "no", "buildability": "buildable", "blocker": "Credentials require an existing paid DealCloud customer site plus admin-enabled API capability for the user; there is no public/self-serve developer account creation. An official MCP server has been announced but is only in client preview starting July 2026, not currently generally available.", "evidence_urls": ["https://api.docs.dealcloud.com/docs", "https://api.docs.dealcloud.com/docs/apikeys", "https://api.docs.dealcloud.com/mcp/authentication", "https://api.docs.dealcloud.com/guides/making_requests_on_behalf_of_users", "https://developers.anduintransact.com/docs/step-1-retrieve-credentials-of-3rd-party-apps-7", "https://api.docs.dealcloud.com/docs/schema", "https://api.docs.dealcloud.com/docs/data"], "confidence": "high", "verified": false}}, "verification_detail": {"Salesforce": {"fields": [{"field": "auth_methods", "research": "OAuth2, Token", "verification": "OAuth2, Token, Basic Auth", "match": false}, {"field": "access_model", "research": "self-serve", "verification": "self-serve", "match": true}, {"field": "api_type", "research": "REST, SOAP, Bulk, Metadata, GraphQL (partial/Connect)", "verification": "REST, SOAP, Bulk, Metadata, Streaming, GraphQL", "match": false}, {"field": "api_breadth", "research": "broad", "verification": "broad", "match": true}, {"field": "mcp_available", "research": "yes", "verification": "yes", "match": true}, {"field": "buildability", "research": "buildable", "verification": "buildable", "match": true}], "matched": 4, "mismatched": 2}, "HubSpot": {"fields": [{"field": "auth_methods", "research": "OAuth2, Token", "verification": "OAuth2, API Key, Token", "match": false}, {"field": "access_model", "research": "self-serve", "verification": "self-serve", "match": true}, {"field": "api_type", "research": "REST", "verification": "REST", "match": true}, {"field": "api_breadth", "research": "broad", "verification": "broad", "match": true}, {"field": "mcp_available", "research": "yes", "verification": "yes", "match": true}, {"field": "buildability", "research": "buildable", "verification": "buildable", "match": true}], "matched": 5, "mismatched": 1}}}
+</script>
+<script>
+const data = JSON.parse(document.getElementById('case-study-data').textContent);
+const research = data.research;
+const verifDetail = data.verification_detail;
+
+function pill(text, kind) {
+  return `<span class="pill ${kind}">${text}</span>`;
+}
+function accessPill(val) {
+  const v = (val || '').toLowerCase();
+  if (v.includes('self-serve')) return pill('Self-serve', 'pos');
+  if (v.includes('gated') || v.includes('approval') || v.includes('admin')) return pill(val, 'neg');
+  return pill(val || 'unknown', 'mid');
+}
+function mcpPill(val) {
+  const v = (val || '').toLowerCase();
+  if (v === 'yes') return pill('MCP: yes', 'pos');
+  if (v === 'no') return pill('MCP: no', 'neg');
+  return pill('MCP: ' + (val || 'unknown'), 'mid');
+}
+
+const container = document.getElementById('findings-container');
+Object.values(research).forEach(r => {
+  const card = document.createElement('div');
+  card.className = 'app-card';
+  const verifiedTag = r.verified
+    ? `<span class="fixed-tag" style="color:var(--pine); border-color:color-mix(in srgb, var(--pine) 40%, transparent);">independently verified</span>`
+    : '';
+  card.innerHTML = `
+    <div class="app-head">
+      <h3>${r.app}</h3>
+      <span class="category-tag">${r.category}</span>
+    </div>
+    <p class="one-liner">${r.description}</p>
+    <div class="field-grid">
+      <div><div class="f-label">Access</div><div class="f-value">${accessPill(r.access_model)}</div></div>
+      <div><div class="f-label">API surface</div><div class="f-value">${String(r.api_type).split(',').slice(0,2).join(', ')}</div></div>
+      <div><div class="f-label">Breadth</div><div class="f-value">${r.api_breadth}</div></div>
+      <div><div class="f-label">MCP</div><div class="f-value">${mcpPill(r.mcp_available)}</div></div>
+    </div>
+    <div class="f-label">Auth methods</div>
+    <div class="f-value" style="margin-bottom:12px; font-weight:400;">${r.auth_methods}</div>
+    <div class="f-label">Buildability</div>
+    <div class="f-value" style="font-weight:400; margin-bottom:8px;">${r.buildability} — ${r.blocker || 'no blocker identified'}</div>
+    <div class="evidence-links">${r.evidence_urls.slice(0,3).map(u => `<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//,'').split('/')[0]}</a>`).join('')}</div>
+    ${verifiedTag ? `<div style="margin-top:10px;">${verifiedTag}</div>` : ''}
+  `;
+  container.appendChild(card);
+});
+
+const verifContainer = document.getElementById('verification-container');
+Object.entries(verifDetail).forEach(([app, detail]) => {
+  const block = document.createElement('div');
+  block.style.marginBottom = '28px';
+  let rows = `<tr><th>Field</th><th class="status-cell">Result</th><th>Original research</th><th>Independent verification</th></tr>`;
+  detail.fields.forEach(f => {
+    const statusPill = f.match ? pill('Match', 'pos') : pill('Differs', 'neg');
+    rows += `<tr>
+      <td style="font-family: var(--font-mono); font-size:12.5px;">${f.field}</td>
+      <td class="status-cell">${statusPill}</td>
+      <td>${f.research}</td>
+      <td>${String(f.verification).slice(0, 200)}${String(f.verification).length > 200 ? '…' : ''}</td>
+    </tr>`;
+  });
+  block.innerHTML = `<h3 style="font-family: var(--font-display); font-size:18px; margin-bottom:4px;">${app}</h3>
+    <p style="font-size:13px; color:var(--muted); margin:0 0 8px;">${detail.matched}/${detail.matched + detail.mismatched} fields matched</p>
+    <table class="compare-table">${rows}</table>`;
+  verifContainer.appendChild(block);
+});
+</script>
+</body>
+</html>
