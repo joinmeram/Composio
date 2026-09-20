@@ -1,0 +1,439 @@
+{
+  "name": "Composio Research Comparison & Analysis",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        208,
+        208
+      ],
+      "id": "c4c3ba5a-9f51-45ed-8c95-d6ee304886b6",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        656,
+        208
+      ],
+      "id": "74bef40c-12fa-409a-b0f9-db1ff0c7d03b",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "const researchFields = [\n  'description', 'auth_methods', 'credential_acquisition', 'access_model',\n  'api_type', 'api_breadth', 'mcp_available', 'buildability', 'blocker'\n];\nconst hasResearch = row => researchFields.some(f => String(row[f] ?? '').trim() !== '');\n\n// Only rows that have actually been researched (skip empty rows).\nconst research = $('Get Original Research').all().filter(i => hasResearch(i.json));\n\n// Totals and accuracy come from the \"calculate\" node.\nconst summary = $input.first().json;\n\n// Per-app comparison results, used for the mismatch counts.\nconst compared = $('compare results').all();\n\nfunction normalize(value) {\n  if (value === null || value === undefined || String(value).trim() === '') return 'unknown';\n  return String(value).trim().toLowerCase();\n}\nfunction addCount(obj, value) { obj[value] = (obj[value] || 0) + 1; }\n\nconst accessModel = {}, apiBreadth = {}, mcpAvailability = {};\nconst buildability = {}, confidence = {}, categoryDistribution = {};\nconst authMethods = {};\nconst commonBlockers = {};\nconst verificationMismatchFields = {};\n\n// Blockers are free text, so they are grouped by keyword.\n// One blocker can fall into more than one group; anything else is \"other\".\nconst blockerGroups = [\n  ['sales_or_contract', /sales|contact us|contract|enterprise|quote/],\n  ['partner_or_approval', /partner|approval|approved|review process|allowlist|whitelist|application/],\n  ['paid_plan_required', /paid|premium|subscription|billing|pricing|tier|licen[cs]e/],\n  ['admin_required', /admin|administrator|tenant/],\n  ['no_public_api', /no (public |official )?api|deprecated|discontinued|not available/]\n];\n\nfor (const item of research) {\n  const row = item.json;\n\n  addCount(accessModel, normalize(row.access_model));\n  addCount(apiBreadth, normalize(row.api_breadth));\n  addCount(mcpAvailability, normalize(row.mcp_available));\n  addCount(buildability, normalize(row.buildability));\n  addCount(confidence, normalize(row.confidence));\n  addCount(categoryDistribution, normalize(row.category));\n\n  const auth = row.auth_methods;\n  const list = Array.isArray(auth) ? auth : String(auth ?? '').split(',');\n  const clean = list.map(x => String(x).trim().toLowerCase()).filter(Boolean);\n  if (clean.length === 0) addCount(authMethods, 'unknown');\n  else clean.forEach(m => addCount(authMethods, m));\n\n  const blocker = normalize(row.blocker);\n  const noBlocker = blocker === 'unknown' || blocker === 'none'\n    || blocker.startsWith('no major blocker') || blocker.startsWith('none identified');\n  if (!noBlocker) {\n    let hit = false;\n    for (const [name, re] of blockerGroups) {\n      if (re.test(blocker)) { addCount(commonBlockers, name); hit = true; }\n    }\n    if (!hit) addCount(commonBlockers, 'other');\n  }\n}\n\nfor (const item of compared) {\n  const list = String(item.json.mismatched_fields_list || '');\n  list.split(',').map(x => x.trim()).filter(Boolean)\n    .forEach(f => addCount(verificationMismatchFields, f));\n}\n\nreturn [{\n  json: {\n    analysis_type: 'research_vs_verification',\n    total_apps: research.length,\n    ...summary,\n    access_model_distribution: accessModel,\n    api_breadth_distribution: apiBreadth,\n    mcp_availability_distribution: mcpAvailability,\n    buildability_distribution: buildability,\n    confidence_distribution: confidence,\n    authentication_method_distribution: authMethods,\n    category_distribution: categoryDistribution,\n    common_blockers: commonBlockers,\n    verification_mismatch_fields: verificationMismatchFields\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1328,
+        208
+      ],
+      "id": "cdf559b9-d65d-43a2-9f60-86f416d1c043",
+      "name": "pattern analysis"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $('compare results').all();\n\nconst count = s => items.filter(i => i.json.comparison_status === s).length;\n\nconst notResearched = count('not_researched');\nconst notVerified = count('not_verified');\nconst matches = count('match');\nconst mismatches = count('mismatch');\n\nconst researched = items.length - notResearched;\n\nconst matchedFields = items.reduce((s, i) => s + Number(i.json.matched_fields || 0), 0);\nconst mismatchedFields = items.reduce((s, i) => s + Number(i.json.mismatched_fields || 0), 0);\nconst comparedFields = matchedFields + mismatchedFields;\n\nconst fieldAccuracy = comparedFields > 0\n  ? Number(((matchedFields / comparedFields) * 100).toFixed(2)) : 0;\n\nconst appAgreement = (matches + mismatches) > 0\n  ? Number(((matches / (matches + mismatches)) * 100).toFixed(2)) : 0;\n\nreturn [{\n  json: {\n    total_researched_apps: researched,\n    total_verified_apps: researched - notVerified,\n    total_matches: matches,\n    total_mismatches: mismatches,\n    total_not_verified: notVerified,\n    matched_fields: matchedFields,\n    mismatched_fields: mismatchedFields,\n    compared_fields: comparedFields,\n    field_accuracy_percent: fieldAccuracy,\n    app_agreement_percent: appAgreement\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1104,
+        208
+      ],
+      "id": "2ea83a23-b5aa-464f-a12b-c535661358a4",
+      "name": "calculate"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1JBcmNrefYR1Jf7h9bfIQstoMOpEqhB_5PJaVwOzScEo",
+          "mode": "list",
+          "cachedResultName": "top 100 company",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JBcmNrefYR1Jf7h9bfIQstoMOpEqhB_5PJaVwOzScEo/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1464098821,
+          "mode": "list",
+          "cachedResultName": "analysis_summary",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JBcmNrefYR1Jf7h9bfIQstoMOpEqhB_5PJaVwOzScEo/edit#gid=1464098821"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "analysis_type": "={{ $json.analysis_type }}",
+            "total_apps": "={{$json.total_apps}}",
+            "category_distribution": "={{ JSON.stringify($json.category_distribution) }}",
+            "access_model_distribution": "={{ JSON.stringify($json.access_model_distribution) }}",
+            "buildability_distribution": "={{ JSON.stringify($json.buildability_distribution) }}",
+            "mcp_availability_distribution": "={{ JSON.stringify($json.mcp_availability_distribution) }}",
+            "api_breadth_distribution": "={{ JSON.stringify($json.api_breadth_distribution) }}",
+            "authentication_method_distribution": "={{ JSON.stringify($json.authentication_method_distribution) }}",
+            "common_blockers": "={{ JSON.stringify($json.common_blockers) }}",
+            "verification_mismatch_fields": "={{ JSON.stringify($json.verification_mismatch_fields) }}",
+            "total_matches": "={{ $json.total_matches }}",
+            "total_mismatches": "={{ $json.total_mismatches }}",
+            "total_not_verified": "= {{ $json.total_not_verified }}",
+            "field_accuracy_percent": "= {{ $json.field_accuracy_percent }}",
+            "app_agreement_percent": "={{ $json.app_agreement_percent }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "analysis_type",
+              "displayName": "analysis_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "total_apps",
+              "displayName": "total_apps",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "category_distribution",
+              "displayName": "category_distribution",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "access_model_distribution",
+              "displayName": "access_model_distribution",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "buildability_distribution",
+              "displayName": "buildability_distribution",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "mcp_availability_distribution",
+              "displayName": "mcp_availability_distribution",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "api_breadth_distribution",
+              "displayName": "api_breadth_distribution",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "authentication_method_distribution",
+              "displayName": "authentication_method_distribution",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "common_blockers",
+              "displayName": "common_blockers",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "verification_mismatch_fields",
+              "displayName": "verification_mismatch_fields",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "total_matches",
+              "displayName": "total_matches",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "total_mismatches",
+              "displayName": "total_mismatches",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "total_not_verified",
+              "displayName": "total_not_verified",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "field_accuracy_percent",
+              "displayName": "field_accuracy_percent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "app_agreement_percent",
+              "displayName": "app_agreement_percent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1552,
+        208
+      ],
+      "id": "73a978b4-1c1e-4389-81cb-7662d40cdb72",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "zIfv1Oybdm3PS9g2",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1JBcmNrefYR1Jf7h9bfIQstoMOpEqhB_5PJaVwOzScEo",
+          "mode": "list",
+          "cachedResultName": "top 100 company",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JBcmNrefYR1Jf7h9bfIQstoMOpEqhB_5PJaVwOzScEo/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "research",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JBcmNrefYR1Jf7h9bfIQstoMOpEqhB_5PJaVwOzScEo/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        432,
+        400
+      ],
+      "id": "a79a1fd2-c0e9-44fa-9ee0-a84bd024fa53",
+      "name": "Get Original Research",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "zIfv1Oybdm3PS9g2",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1JBcmNrefYR1Jf7h9bfIQstoMOpEqhB_5PJaVwOzScEo",
+          "mode": "list",
+          "cachedResultName": "top 100 company",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JBcmNrefYR1Jf7h9bfIQstoMOpEqhB_5PJaVwOzScEo/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 131276562,
+          "mode": "list",
+          "cachedResultName": "verification",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1JBcmNrefYR1Jf7h9bfIQstoMOpEqhB_5PJaVwOzScEo/edit#gid=131276562"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        432,
+        208
+      ],
+      "id": "67709c51-0ca3-42c0-8f70-1945531f2536",
+      "name": "Get verification results",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "zIfv1Oybdm3PS9g2",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const original = $('Get Original Research').all();\nconst verified = $('Get verification results').all();\n\n// If the verification tab has several rows for one id, the LAST one wins.\nconst verifiedMap = new Map();\nfor (const item of verified) {\n  const id = String(item.json.id ?? '').trim();\n  if (id) verifiedMap.set(id, item.json);\n}\n\n// Only short, controlled fields can be compared reliably.\n// Free-text fields (description, credential_acquisition, blocker) are worded\n// differently by every model run, so they would almost always show as mismatches.\nconst fields = [\n  'auth_methods',\n  'access_model',\n  'api_type',\n  'api_breadth',\n  'mcp_available',\n  'buildability'\n];\nconst listFields = new Set(['auth_methods', 'api_type']);\n\n// Used only to decide whether a research row has been filled in at all.\nconst researchFields = [\n  'description', 'auth_methods', 'credential_acquisition', 'access_model',\n  'api_type', 'api_breadth', 'mcp_available', 'buildability', 'blocker'\n];\n\nfunction token(s) {\n  let t = String(s).toLowerCase().replace(/[^a-z0-9]/g, '');\n  if (t === 'oauth20') t = 'oauth2';\n  return t;\n}\n\nfunction normalize(value, field) {\n  if (value === null || value === undefined) return '';\n  let parts;\n  if (Array.isArray(value)) {\n    parts = value.map(String);\n  } else if (listFields.has(field)) {\n    parts = String(value).split(/[,|;]/);\n  } else {\n    return token(value);\n  }\n  // order-independent: \"OAuth2, API Key\" equals \"API Key, OAuth2\"\n  return parts.map(token).filter(Boolean).sort().join('|');\n}\n\nfunction hasResearch(row) {\n  return researchFields.some(f => String(row[f] ?? '').trim() !== '');\n}\n\nconst results = [];\n\nfor (const item of original) {\n  const o = item.json;\n  const id = String(o.id ?? '').trim();\n  const base = { id: o.id, app: o.app, category: o.category };\n\n  // Research not done yet for this row: nothing to compare.\n  if (!hasResearch(o)) {\n    results.push({ json: { ...base, comparison_status: 'not_researched',\n      matched_fields: 0, mismatched_fields: 0, mismatched_fields_list: '', verification_confidence: '' } });\n    continue;\n  }\n\n  const v = verifiedMap.get(id);\n\n  // No verification record for this row.\n  if (!v) {\n    results.push({ json: { ...base, comparison_status: 'not_verified',\n      matched_fields: 0, mismatched_fields: 0, mismatched_fields_list: '', verification_confidence: '' } });\n    continue;\n  }\n\n  let matched = 0;\n  let mismatched = 0;\n  const mismatches = [];\n\n  for (const field of fields) {\n    const rawVerified = v[`verification_${field}`] ?? v[field];\n    const a = normalize(o[field], field);\n    const b = normalize(rawVerified, field);\n\n    // Two empty values are not counted as a match.\n    if (a === '' && b === '') continue;\n\n    if (a === b) {\n      matched++;\n    } else {\n      mismatched++;\n      mismatches.push(field);\n    }\n  }\n\n  let status = 'match';\n  if (matched === 0 && mismatched === 0) status = 'not_verified';\n  else if (mismatched > 0) status = 'mismatch';\n\n  results.push({ json: { ...base, comparison_status: status,\n    matched_fields: matched, mismatched_fields: mismatched,\n    mismatched_fields_list: mismatches.join(', '),\n    verification_confidence: v.verification_confidence ?? v.confidence ?? '' } });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        208
+      ],
+      "id": "4c1bf6c4-2464-44e2-9710-e50c077573c7",
+      "name": "compare results"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get verification results",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Original Research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "compare results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "calculate": {
+      "main": [
+        [
+          {
+            "node": "pattern analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "pattern analysis": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Original Research": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Get verification results": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "compare results": {
+      "main": [
+        [
+          {
+            "node": "calculate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "6bde4078-47ea-4e3f-8c44-64294b30c6b4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "83b78e7793229ae2c3d9999fe9f8505c13348b7ef579ff38249e01a0e5ab4464"
+  },
+  "nodeGroups": [],
+  "id": "pedkxXK438ZTzvKU",
+  "tags": []
+}
